@@ -119,8 +119,9 @@ class _InventoryHomePageState extends State<InventoryHomePage> {
       body: StreamBuilder<QuerySnapshot>(
         stream: _fetchInventory(),
         builder: (context, snapshot) {
-          if (!snapshot.hasData)
+          if (!snapshot.hasData) {
             return Center(child: CircularProgressIndicator());
+          }
 
           var items = snapshot.data!.docs;
           return ListView.builder(

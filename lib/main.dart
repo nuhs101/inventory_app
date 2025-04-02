@@ -14,15 +14,16 @@ class InventoryApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Inventory Management',
+      title: 'Inventory Management App',
       theme: ThemeData(primarySwatch: Colors.blue),
-      home: InventoryHomePage(),
+      home: InventoryHomePage(title: 'Inventory Home Page'),
     );
   }
 }
 
 class InventoryHomePage extends StatefulWidget {
-  const InventoryHomePage({super.key});
+  const InventoryHomePage({super.key, required this.title});
+  final String title;
 
   @override
   State<InventoryHomePage> createState() => _InventoryHomePageState();
@@ -30,70 +31,126 @@ class InventoryHomePage extends StatefulWidget {
 
 class _InventoryHomePageState extends State<InventoryHomePage> {
   final TextEditingController _nameController = TextEditingController();
-  final CollectionReference _inventory = FirebaseFirestore.instance.collection(
-    'items',
-  );
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
+  Stream<QuerySnapshot> _fetchInventory() {
+    return _firestore.collection('items').snapshots();
+  }
 
   void _addItem() {
-    if (_nameController.text.isNotEmpty) {
-      _inventory.add({'name': _nameController.text});
+    final name = _nameController.text;
+    if (name.isNotEmpty) {
+      _firestore.collection('items').add({'name': name});
       _nameController.clear();
     }
   }
 
+  void _updateItem(String id, String currentName) {
+    _nameController.text = currentName;
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text('Update Item'),
+          content: TextField(
+            controller: _nameController,
+            decoration: InputDecoration(labelText: 'Item Name'),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () {
+                if (_nameController.text.isNotEmpty) {
+                  _firestore.collection('items').doc(id).update({
+                    'name': _nameController.text,
+                  });
+                }
+                _nameController.clear();
+                Navigator.pop(context);
+              },
+              child: Text('Update'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   void _deleteItem(String id) {
-    _inventory.doc(id).delete();
+    _firestore.collection('items').doc(id).delete();
+  }
+
+  void _showAddItemDialog() {
+    _nameController.clear();
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text('Add New Item'),
+          content: TextField(
+            controller: _nameController,
+            decoration: InputDecoration(labelText: 'Item Name'),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () {
+                _addItem();
+                Navigator.pop(context);
+              },
+              child: Text('Add'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('Inventory Management')),
+      appBar: AppBar(title: Text(widget.title)),
       body: StreamBuilder<QuerySnapshot>(
-        stream: _inventory.snapshots(),
+        stream: _fetchInventory(),
         builder: (context, snapshot) {
-          if (!snapshot.hasData) return CircularProgressIndicator();
-          return ListView(
-            children:
-                snapshot.data!.docs.map((doc) {
-                  return ListTile(
-                    title: Text(doc['name']),
-                    trailing: IconButton(
-                      icon: Icon(Icons.delete, color: Colors.red),
-                      onPressed: () => _deleteItem(doc.id),
+          if (!snapshot.hasData)
+            return Center(child: CircularProgressIndicator());
+
+          var items = snapshot.data!.docs;
+          return ListView.builder(
+            itemCount: items.length,
+            itemBuilder: (context, index) {
+              var item = items[index];
+              return ListTile(
+                title: Text(item['name']),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      icon: Icon(Icons.edit, color: Colors.blue),
+                      onPressed: () => _updateItem(item.id, item['name']),
                     ),
-                  );
-                }).toList(),
+                    IconButton(
+                      icon: Icon(Icons.delete, color: Colors.red),
+                      onPressed: () => _deleteItem(item.id),
+                    ),
+                  ],
+                ),
+              );
+            },
           );
         },
       ),
       floatingActionButton: FloatingActionButton(
+        onPressed: _showAddItemDialog,
+        tooltip: 'Add Item',
         child: Icon(Icons.add),
-        onPressed:
-            () => showDialog(
-              context: context,
-              builder:
-                  (context) => AlertDialog(
-                    title: Text('Add Item'),
-                    content: TextField(
-                      controller: _nameController,
-                      decoration: InputDecoration(hintText: 'Item Name'),
-                    ),
-                    actions: [
-                      TextButton(
-                        child: Text('Cancel'),
-                        onPressed: () => Navigator.pop(context),
-                      ),
-                      TextButton(
-                        child: Text('Add'),
-                        onPressed: () {
-                          _addItem();
-                          Navigator.pop(context);
-                        },
-                      ),
-                    ],
-                  ),
-            ),
       ),
     );
   }

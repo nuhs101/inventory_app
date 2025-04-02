@@ -67,6 +67,34 @@ class _InventoryHomePageState extends State<InventoryHomePage> {
           );
         },
       ),
+      floatingActionButton: FloatingActionButton(
+        child: Icon(Icons.add),
+        onPressed:
+            () => showDialog(
+              context: context,
+              builder:
+                  (context) => AlertDialog(
+                    title: Text('Add Item'),
+                    content: TextField(
+                      controller: _nameController,
+                      decoration: InputDecoration(hintText: 'Item Name'),
+                    ),
+                    actions: [
+                      TextButton(
+                        child: Text('Cancel'),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                      TextButton(
+                        child: Text('Add'),
+                        onPressed: () {
+                          _addItem();
+                          Navigator.pop(context);
+                        },
+                      ),
+                    ],
+                  ),
+            ),
+      ),
     );
   }
 }
